@@ -11,7 +11,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
-public class CompletableFutureCollector<T, A, R> extends
+class CompletableFutureCollector<T, A, R> extends
     CompletableFutureAdapter<Collector<T, A, R>> implements
     Collector<CompletableFuture<T>, AtomicReference<CompletableFuture<A>>, CompletableFuture<R>> {
   CompletableFutureCollector(Collector<T, A, R> delegate, Executor executor) {
