@@ -3,7 +3,6 @@ package name.falgout.jeffrey.stream.future.adapter;
 import java.util.IntSummaryStatistics;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
@@ -22,189 +21,192 @@ import name.falgout.jeffrey.stream.future.FutureDoubleStream;
 import name.falgout.jeffrey.stream.future.FutureIntStream;
 import name.falgout.jeffrey.stream.future.FutureLongStream;
 import name.falgout.jeffrey.stream.future.FutureStream;
+import throwing.Nothing;
+import throwing.stream.ThrowingIntStream;
+import throwing.stream.adapter.ThrowingBridge;
+import throwing.stream.union.UnionIntStream;
 
-class FutureIntStreamAdapter extends FutureBaseStreamAdapter<Integer, FutureIntStream, IntStream>
-        implements FutureIntStream {
-    FutureIntStreamAdapter(CompletableFuture<IntStream> delegate) {
-        super(delegate);
-    }
+class FutureIntStreamAdapter extends
+    FutureBaseStreamAdapter<Integer, UnionIntStream<FutureThrowable>, FutureIntStream> implements
+    FutureIntStream {
 
-    FutureIntStreamAdapter(CompletableFuture<IntStream> delegate, Executor executor) {
-        super(delegate, executor);
-    }
+  FutureIntStreamAdapter(UnionIntStream<FutureThrowable> delegate, Executor executor) {
+    super(delegate, executor);
+  }
 
-    FutureIntStreamAdapter(CompletableFuture<IntStream> delegate, Void async) {
-        super(delegate, async);
-    }
+  FutureIntStreamAdapter(UnionIntStream<FutureThrowable> delegate,
+      FutureBaseStreamAdapter<?, ?, ?> parent) {
+    super(delegate, parent);
+  }
 
-    FutureIntStreamAdapter(CompletableFuture<IntStream> delegate,
-            FutureBaseStreamAdapter<?, ?, ?> parent) {
-        super(delegate, parent);
-    }
+  FutureIntStreamAdapter(UnionIntStream<FutureThrowable> delegate) {
+    super(delegate);
+  }
 
-    @Override
-    protected FutureIntStream getSelf() {
-        return this;
-    }
+  @Override
+  public FutureIntStream getSelf() {
+    return this;
+  }
 
-    @Override
-    protected FutureIntStream newStream(CompletableFuture<IntStream> delegate) {
-        return new FutureIntStreamAdapter(delegate, this);
-    }
+  @Override
+  public FutureIntStream createNewAdapter(UnionIntStream<FutureThrowable> newDelegate) {
+    return new FutureIntStreamAdapter(newDelegate, this);
+  }
 
-    @Override
-    public FutureIntStream filter(IntPredicate predicate) {
-        return chain(thenApply(s -> s.filter(predicate)));
-    }
+  @Override
+  public FutureIntStream filter(IntPredicate predicate) {
+    return chain(UnionIntStream::normalFilter, predicate);
+  }
 
-    @Override
-    public FutureIntStream map(IntUnaryOperator mapper) {
-        return chain(thenApply(s -> s.map(mapper)));
-    }
+  @Override
+  public FutureIntStream map(IntUnaryOperator mapper) {
+    return chain(UnionIntStream::normalMap, mapper);
+  }
 
-    @Override
-    public <U> FutureStream<U> mapToObj(IntFunction<? extends U> mapper) {
-        return new FutureStreamAdapter<>(thenApply(s -> s.mapToObj(mapper)), this);
-    }
+  @Override
+  public <U> FutureStream<U> mapToObj(IntFunction<? extends U> mapper) {
+    return new FutureStreamAdapter<>(getDelegate().normalMapToObj(mapper), this);
+  }
 
-    @Override
-    public FutureLongStream mapToLong(IntToLongFunction mapper) {
-        return new FutureLongStreamAdapter(thenApply(s -> s.mapToLong(mapper)), this);
-    }
+  @Override
+  public FutureLongStream mapToLong(IntToLongFunction mapper) {
+    return new FutureLongStreamAdapter(getDelegate().normalMapToLong(mapper), this);
+  }
 
-    @Override
-    public FutureDoubleStream mapToDouble(IntToDoubleFunction mapper) {
-        return new FutureDoubleStreamAdapter(thenApply(s -> s.mapToDouble(mapper)), this);
-    }
+  @Override
+  public FutureDoubleStream mapToDouble(IntToDoubleFunction mapper) {
+    return new FutureDoubleStreamAdapter(getDelegate().normalMapToDouble(mapper), this);
+  }
 
-    @Override
-    public FutureIntStream flatMap(IntFunction<? extends IntStream> mapper) {
-        return chain(thenApply(s -> s.flatMap(mapper)));
-    }
+  @Override
+  public FutureIntStream flatMap(IntFunction<? extends IntStream> mapper) {
+    IntFunction<? extends ThrowingIntStream<Nothing>> f = i -> ThrowingBridge.of(mapper.apply(i));
+    return chain(UnionIntStream::normalFlatMap, f);
+  }
 
-    @Override
-    public FutureIntStream distinct() {
-        return chain(thenApply(IntStream::distinct));
-    }
+  @Override
+  public FutureIntStream distinct() {
+    return chain(UnionIntStream::distinct);
+  }
 
-    @Override
-    public FutureIntStream sorted() {
-        return chain(thenApply(IntStream::sorted));
-    }
+  @Override
+  public FutureIntStream sorted() {
+    return chain(UnionIntStream::sorted);
+  }
 
-    @Override
-    public FutureIntStream peek(IntConsumer action) {
-        return chain(thenApply(s -> s.peek(action)));
-    }
+  @Override
+  public FutureIntStream peek(IntConsumer action) {
+    return chain(UnionIntStream::normalPeek, action);
+  }
 
-    @Override
-    public FutureIntStream limit(long maxSize) {
-        return chain(thenApply(s -> s.limit(maxSize)));
-    }
+  @Override
+  public FutureIntStream limit(long maxSize) {
+    return chain(UnionIntStream::limit, maxSize);
+  }
 
-    @Override
-    public FutureIntStream skip(long n) {
-        return chain(thenApply(s -> s.skip(n)));
-    }
+  @Override
+  public FutureIntStream skip(long n) {
+    return chain(UnionIntStream::skip, n);
+  }
 
-    @Override
-    public void forEach(IntConsumer action) {
-        thenAccept(s -> s.forEach(action));
-    }
+  @Override
+  public void forEach(IntConsumer action) {
+    completeVoid(UnionIntStream::normalForEach, action);
+  }
 
-    @Override
-    public void forEachOrdered(IntConsumer action) {
-        thenAccept(s -> s.forEachOrdered(action));
-    }
+  @Override
+  public void forEachOrdered(IntConsumer action) {
+    completeVoid(UnionIntStream::normalForEachOrdered, action);
+  }
 
-    @Override
-    public Future<int[]> toArray() {
-        return thenApply(IntStream::toArray);
-    }
+  @Override
+  public Future<int[]> toArray() {
+    return complete(UnionIntStream::toArray);
+  }
 
-    @Override
-    public Future<Integer> reduce(int identity, IntBinaryOperator op) {
-        return thenApply(s -> s.reduce(identity, op));
-    }
+  @Override
+  public Future<Integer> reduce(int identity, IntBinaryOperator op) {
+    return complete(s -> s.normalReduce(identity, op));
+  }
 
-    @Override
-    public Future<OptionalInt> reduce(IntBinaryOperator op) {
-        return thenApply(s -> s.reduce(op));
-    }
+  @Override
+  public Future<OptionalInt> reduce(IntBinaryOperator op) {
+    return complete(UnionIntStream::normalReduce, op);
+  }
 
-    @Override
-    public <R> Future<R> collect(Supplier<R> supplier, ObjIntConsumer<R> accumulator,
-            BiConsumer<R, R> combiner) {
-        return thenApply(s -> s.collect(supplier, accumulator, combiner));
-    }
+  @Override
+  public <R> Future<R> collect(Supplier<R> supplier, ObjIntConsumer<R> accumulator,
+      BiConsumer<R, R> combiner) {
+    return complete(s -> s.normalCollect(supplier, accumulator, combiner));
+  }
 
-    @Override
-    public Future<Integer> sum() {
-        return thenApply(IntStream::sum);
-    }
+  @Override
+  public Future<Integer> sum() {
+    return complete(UnionIntStream::sum);
+  }
 
-    @Override
-    public Future<OptionalInt> min() {
-        return thenApply(IntStream::min);
-    }
+  @Override
+  public Future<OptionalInt> min() {
+    return complete(UnionIntStream::min);
+  }
 
-    @Override
-    public Future<OptionalInt> max() {
-        return thenApply(IntStream::max);
-    }
+  @Override
+  public Future<OptionalInt> max() {
+    return complete(UnionIntStream::max);
+  }
 
-    @Override
-    public Future<Long> count() {
-        return thenApply(IntStream::count);
-    }
+  @Override
+  public Future<Long> count() {
+    return complete(UnionIntStream::count);
+  }
 
-    @Override
-    public Future<OptionalDouble> average() {
-        return thenApply(IntStream::average);
-    }
+  @Override
+  public Future<OptionalDouble> average() {
+    return complete(UnionIntStream::average);
+  }
 
-    @Override
-    public Future<IntSummaryStatistics> summaryStatistics() {
-        return thenApply(IntStream::summaryStatistics);
-    }
+  @Override
+  public Future<IntSummaryStatistics> summaryStatistics() {
+    return complete(UnionIntStream::summaryStatistics);
+  }
 
-    @Override
-    public Future<Boolean> anyMatch(IntPredicate predicate) {
-        return thenApply(s -> s.anyMatch(predicate));
-    }
+  @Override
+  public Future<Boolean> anyMatch(IntPredicate predicate) {
+    return complete(UnionIntStream::normalAnyMatch, predicate);
+  }
 
-    @Override
-    public Future<Boolean> allMatch(IntPredicate predicate) {
-        return thenApply(s -> s.allMatch(predicate));
-    }
+  @Override
+  public Future<Boolean> allMatch(IntPredicate predicate) {
+    return complete(UnionIntStream::normalAllMatch, predicate);
+  }
 
-    @Override
-    public Future<Boolean> noneMatch(IntPredicate predicate) {
-        return thenApply(s -> s.noneMatch(predicate));
-    }
+  @Override
+  public Future<Boolean> noneMatch(IntPredicate predicate) {
+    return complete(UnionIntStream::normalNoneMatch, predicate);
+  }
 
-    @Override
-    public Future<OptionalInt> findFirst() {
-        return thenApply(IntStream::findFirst);
-    }
+  @Override
+  public Future<OptionalInt> findFirst() {
+    return complete(UnionIntStream::findFirst);
+  }
 
-    @Override
-    public Future<OptionalInt> findAny() {
-        return thenApply(IntStream::findAny);
-    }
+  @Override
+  public Future<OptionalInt> findAny() {
+    return complete(UnionIntStream::findAny);
+  }
 
-    @Override
-    public FutureLongStream asLongStream() {
-        return new FutureLongStreamAdapter(thenApply(IntStream::asLongStream), this);
-    }
+  @Override
+  public FutureLongStream asLongStream() {
+    return new FutureLongStreamAdapter(getDelegate().asLongStream(), this);
+  }
 
-    @Override
-    public FutureDoubleStream asDoubleStream() {
-        return new FutureDoubleStreamAdapter(thenApply(IntStream::asDoubleStream), this);
-    }
+  @Override
+  public FutureDoubleStream asDoubleStream() {
+    return new FutureDoubleStreamAdapter(getDelegate().asDoubleStream(), this);
+  }
 
-    @Override
-    public FutureStream<Integer> boxed() {
-        return new FutureStreamAdapter<>(thenApply(IntStream::boxed), this);
-    }
+  @Override
+  public FutureStream<Integer> boxed() {
+    return new FutureStreamAdapter<Integer>(getDelegate().boxed(), this);
+  }
 }

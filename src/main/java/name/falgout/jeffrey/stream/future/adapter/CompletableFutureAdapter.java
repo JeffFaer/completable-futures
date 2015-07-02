@@ -7,8 +7,9 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-abstract class CompletableFutureAdapter<D> {
-  private final D delegate;
+import throwing.stream.adapter.AbstractAdapter;
+
+abstract class CompletableFutureAdapter<D> extends AbstractAdapter<D> {
   private final ThenApply thenApply;
   private final ThenAccept thenAccept;
   private final ThenCombine thenCombine;
@@ -35,15 +36,11 @@ abstract class CompletableFutureAdapter<D> {
 
   private CompletableFutureAdapter(D delegate, ThenApply thenApply, ThenAccept thenAccept,
       ThenCombine thenCombine, ThenAcceptBoth thenAcceptBoth) {
-    this.delegate = delegate;
+    super(delegate);
     this.thenApply = thenApply;
     this.thenAccept = thenAccept;
     this.thenCombine = thenCombine;
     this.thenAcceptBoth = thenAcceptBoth;
-  }
-
-  protected D getDelegate() {
-    return delegate;
   }
 
   protected <T, R> CompletableFuture<R> thenApply(CompletableFuture<T> future,

@@ -118,35 +118,36 @@ public final class CompletableFutures {
   }
 
   @SafeVarargs
-  public static <T> Future<List<T>> allElements(Future<T>... futures) {
-    return allElements(Arrays.asList(futures));
+  public static <T> Future<List<T>> allOf(Future<T>... futures) {
+    return allOf(Arrays.asList(futures));
   }
 
-  public static <T> Future<List<T>> allElements(Iterable<Future<T>> futures) {
-    return allElements(futures, toList());
+  public static <T> Future<List<T>> allOf(Iterable<? extends Future<T>> futures) {
+    return allOf(futures, toList());
   }
 
-  private static <T> Future<List<T>> allElements(Iterable<Future<T>> futures,
+  private static <T> Future<List<T>> allOf(Iterable<? extends Future<T>> futures,
       Collector<Future<T>, ?, ? extends Future<List<T>>> collector) {
     return StreamSupport.stream(futures.spliterator(), false).collect(collector);
   }
 
   @SafeVarargs
-  public static <T> Future<List<T>> allElementsAsync(Future<T>... futures) {
-    return allElementsAsync(Arrays.asList(futures));
+  public static <T> Future<List<T>> allOfAsync(Future<T>... futures) {
+    return allOfAsync(Arrays.asList(futures));
   }
 
-  public static <T> Future<List<T>> allElementsAsync(Iterable<Future<T>> futures) {
-    return allElements(futures, toListAsync());
+  public static <T> Future<List<T>> allOfAsync(Iterable<? extends Future<T>> futures) {
+    return allOf(futures, toListAsync());
   }
 
   @SafeVarargs
-  public static <T> Future<List<T>> allElementsAsync(Executor executor, Future<T>... futures) {
-    return allElementsAsync(Arrays.asList(futures), executor);
+  public static <T> Future<List<T>> allOfAsync(Executor executor, Future<T>... futures) {
+    return allOfAsync(Arrays.asList(futures), executor);
   }
 
-  public static <T> Future<List<T>> allElementsAsync(Iterable<Future<T>> futures, Executor executor) {
-    return allElements(futures, toListAsync(executor));
+  public static <T> Future<List<T>> allOfAsync(Iterable<? extends Future<T>> futures,
+      Executor executor) {
+    return allOf(futures, toListAsync(executor));
   }
 
   @SafeVarargs
@@ -154,37 +155,20 @@ public final class CompletableFutures {
     return stream(Arrays.asList(futures));
   }
 
-  public static <T> FutureStream<T> stream(Iterable<Future<T>> futures) {
-    return stream(futures, CompletableFutures::allElements,
-        CompletableFutures::newCompletableFuture, FutureStreamBridge::of);
+  public static <T> FutureStream<T> stream(Iterable<? extends Future<T>> futures) {
+    return FutureStreamBridge.of(createStream(futures));
   }
 
-  private static <T> FutureStream<T> stream(Iterable<Future<T>> futures,
-      Function<Iterable<Future<T>>, Future<List<T>>> listMapper,
-      Function<Future<List<T>>, CompletableFuture<List<T>>> futureMapper,
-      Function<CompletableFuture<Stream<T>>, FutureStream<T>> futureStreamMapper) {
-    CompletableFuture<List<T>> list = listMapper.andThen(futureMapper).apply(futures);
-    return futureStreamMapper.apply(list.thenApply(List::stream));
+  private static <T> Stream<T> createStream(Iterable<T> elements) {
+    return StreamSupport.stream(elements.spliterator(), false);
   }
 
   @SafeVarargs
-  public static <T> FutureStream<T> streamAsync(Future<T>... futures) {
-    return streamAsync(Arrays.asList(futures));
+  public static <T> FutureStream<T> stream(Executor executor, Future<T>... futures) {
+    return stream(Arrays.asList(futures), executor);
   }
 
-  public static <T> FutureStream<T> streamAsync(Iterable<Future<T>> futures) {
-    return stream(futures, CompletableFutures::allElementsAsync,
-        CompletableFutures::newCompletableFuture, FutureStreamBridge::ofAsync);
-  }
-
-  @SafeVarargs
-  public static <T> FutureStream<T> streamAsync(Executor executor, Future<T>... futures) {
-    return streamAsync(Arrays.asList(futures), executor);
-  }
-
-  public static <T> FutureStream<T> streamAsync(Iterable<Future<T>> futures, Executor executor) {
-    return stream(futures, i -> CompletableFutures.allElementsAsync(i, executor),
-        f -> CompletableFutures.newCompletableFuture(f, executor),
-        cf -> FutureStreamBridge.ofAsync(cf, executor));
+  public static <T> FutureStream<T> stream(Iterable<? extends Future<T>> futures, Executor executor) {
+    return FutureStreamBridge.of(createStream(futures), executor);
   }
 }
