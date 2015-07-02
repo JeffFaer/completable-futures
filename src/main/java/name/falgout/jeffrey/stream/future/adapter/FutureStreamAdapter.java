@@ -1,38 +1,36 @@
 package name.falgout.jeffrey.stream.future.adapter;
 
-import java.util.Comparator;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.BinaryOperator;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.function.ToDoubleFunction;
-import java.util.function.ToIntFunction;
-import java.util.function.ToLongFunction;
-import java.util.stream.Collector;
-import java.util.stream.DoubleStream;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
-import java.util.stream.Stream;
 
 import name.falgout.jeffrey.stream.future.FutureDoubleStream;
 import name.falgout.jeffrey.stream.future.FutureIntStream;
 import name.falgout.jeffrey.stream.future.FutureLongStream;
 import name.falgout.jeffrey.stream.future.FutureStream;
-import throwing.Nothing;
+import throwing.ThrowingComparator;
+import throwing.function.ThrowingBiConsumer;
+import throwing.function.ThrowingBiFunction;
+import throwing.function.ThrowingBinaryOperator;
+import throwing.function.ThrowingConsumer;
+import throwing.function.ThrowingFunction;
+import throwing.function.ThrowingPredicate;
+import throwing.function.ThrowingSupplier;
+import throwing.stream.ThrowingCollector;
 import throwing.stream.ThrowingStream;
-import throwing.stream.adapter.ThrowingBridge;
+import throwing.stream.intermediate.adapter.ThrowingStreamIntermediateAdapter;
+import throwing.stream.union.UnionDoubleStream;
+import throwing.stream.union.UnionIntStream;
+import throwing.stream.union.UnionLongStream;
 import throwing.stream.union.UnionStream;
 
 class FutureStreamAdapter<T> extends
     FutureBaseStreamAdapter<T, UnionStream<T, FutureThrowable>, FutureStream<T>> implements
-    FutureStream<T> {
+    FutureStream<T>,
+    ThrowingStreamIntermediateAdapter<T, Throwable, ExecutionException, UnionStream<T, FutureThrowable>, UnionIntStream<FutureThrowable>, UnionLongStream<FutureThrowable>, UnionDoubleStream<FutureThrowable>, FutureStream<T>, FutureIntStream, FutureLongStream, FutureDoubleStream> {
   FutureStreamAdapter(UnionStream<T, FutureThrowable> delegate, Executor executor) {
     super(delegate, executor);
   }
@@ -61,92 +59,54 @@ class FutureStreamAdapter<T> extends
   }
 
   @Override
-  public FutureStream<T> filter(Predicate<? super T> predicate) {
-    return chain(getDelegate().normalFilter(predicate));
+  public FutureIntStream newIntStream(UnionIntStream<FutureThrowable> delegate) {
+    return new FutureIntStreamAdapter(delegate, this);
   }
 
   @Override
-  public <R> FutureStream<R> map(Function<? super T, ? extends R> mapper) {
-    return newStream(getDelegate().normalMap(mapper));
+  public FutureLongStream newLongStream(UnionLongStream<FutureThrowable> delegate) {
+    return new FutureLongStreamAdapter(delegate, this);
   }
 
   @Override
-  public FutureIntStream mapToInt(ToIntFunction<? super T> mapper) {
-    return new FutureIntStreamAdapter(getDelegate().normalMapToInt(mapper), this);
+  public FutureDoubleStream newDoubleStream(UnionDoubleStream<FutureThrowable> delegate) {
+    return new FutureDoubleStreamAdapter(delegate, this);
   }
 
   @Override
-  public FutureLongStream mapToLong(ToLongFunction<? super T> mapper) {
-    return new FutureLongStreamAdapter(getDelegate().normalMapToLong(mapper), this);
+  public throwing.stream.terminal.ThrowingBaseStreamTerminal.Iterator<T, Throwable, Throwable> iterator() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("TODO");
   }
 
   @Override
-  public FutureDoubleStream mapToDouble(ToDoubleFunction<? super T> mapper) {
-    return new FutureDoubleStreamAdapter(getDelegate().normalMapToDouble(mapper), this);
+  public throwing.stream.terminal.ThrowingBaseStreamTerminal.BaseSpliterator<T, Throwable, Throwable, ?> spliterator() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("TODO");
   }
 
   @Override
-  public <R> FutureStream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper) {
-    Function<Stream<? extends R>, ThrowingStream<? extends R, Nothing>> streamMapper = ThrowingBridge::of;
-    return newStream(getDelegate().normalFlatMap(mapper.andThen(streamMapper)));
+  public <R> FutureStream<R> map(
+      ThrowingFunction<? super T, ? extends R, ? extends Throwable> mapper) {
+    return newStream(getDelegate().map(getFunctionAdapter().convert(mapper)));
   }
 
   @Override
-  public FutureIntStream flatMapToInt(Function<? super T, ? extends IntStream> mapper) {
-    return new FutureIntStreamAdapter(getDelegate().normalFlatMapToInt(
-        mapper.andThen(ThrowingBridge::of)), this);
+  public <R> FutureStream<R> flatMap(
+      ThrowingFunction<? super T, ? extends ThrowingStream<? extends R, ? extends Throwable>, ? extends Throwable> mapper) {
+    Function<ThrowingStream<? extends R, ? extends Throwable>, ThrowingStream<? extends R, ExecutionException>> streamMapper = getFunctionAdapter()::convert;
+    return newStream(getDelegate().flatMap(
+        getFunctionAdapter().convert(mapper.andThen(streamMapper))));
   }
 
   @Override
-  public FutureLongStream flatMapToLong(Function<? super T, ? extends LongStream> mapper) {
-    return new FutureLongStreamAdapter(getDelegate().normalFlatMapToLong(
-        mapper.andThen(ThrowingBridge::of)), this);
+  public Future<Void> forEach(ThrowingConsumer<? super T, ?> action) {
+    return completeVoid(UnionStream::forEach, getFunctionAdapter().convert(action));
   }
 
   @Override
-  public FutureDoubleStream flatMapToDouble(Function<? super T, ? extends DoubleStream> mapper) {
-    return new FutureDoubleStreamAdapter(getDelegate().normalFlatMapToDouble(
-        mapper.andThen(ThrowingBridge::of)), this);
-  }
-
-  @Override
-  public FutureStream<T> distinct() {
-    return chain(UnionStream::distinct);
-  }
-
-  @Override
-  public FutureStream<T> sorted() {
-    return chain(UnionStream::sorted);
-  }
-
-  @Override
-  public FutureStream<T> sorted(Comparator<? super T> comparator) {
-    return chain(UnionStream::normalSorted, comparator);
-  }
-
-  @Override
-  public FutureStream<T> peek(Consumer<? super T> action) {
-    return chain(UnionStream::normalPeek, action);
-  }
-
-  @Override
-  public FutureStream<T> limit(long maxSize) {
-    return chain(UnionStream::limit, maxSize);
-  }
-
-  @Override
-  public FutureStream<T> skip(long n) {
-    return chain(UnionStream::skip, n);
-  }
-
-  @Override
-  public void forEach(Consumer<? super T> action) {
-    completeVoid(UnionStream::normalForEach, action);
-  }
-
-  @Override
-  public void forEachOrdered(Consumer<? super T> action) {
-    completeVoid(UnionStream::normalForEachOrdered, action);
+  public Future<Void> forEachOrdered(ThrowingConsumer<? super T, ?> action) {
+    return completeVoid(UnionStream::forEachOrdered, getFunctionAdapter().convert(action));
   }
 
   @Override
@@ -160,40 +120,43 @@ class FutureStreamAdapter<T> extends
   }
 
   @Override
-  public Future<T> reduce(T identity, BinaryOperator<T> accumulator) {
-    return complete(s -> s.normalReduce(identity, accumulator));
+  public Future<T> reduce(T identity, ThrowingBinaryOperator<T, ?> accumulator) {
+    return complete(s -> s.reduce(identity, getFunctionAdapter().convert(accumulator)));
   }
 
   @Override
-  public Future<Optional<T>> reduce(BinaryOperator<T> accumulator) {
-    return complete(s -> s.normalReduce(accumulator));
+  public Future<Optional<T>> reduce(ThrowingBinaryOperator<T, ?> accumulator) {
+    return complete(UnionStream<T, FutureThrowable>::reduce,
+        getFunctionAdapter().convert(accumulator));
   }
 
   @Override
-  public <U> Future<U> reduce(U identity, BiFunction<U, ? super T, U> accumulator,
-      BinaryOperator<U> combiner) {
-    return complete(s -> s.normalReduce(identity, accumulator, combiner));
+  public <U> Future<U> reduce(U identity, ThrowingBiFunction<U, ? super T, U, ?> accumulator,
+      ThrowingBinaryOperator<U, ?> combiner) {
+    return complete(s -> s.reduce(identity, getFunctionAdapter().convert(accumulator),
+        getFunctionAdapter().convert(combiner)));
   }
 
   @Override
-  public <R> Future<R> collect(Supplier<R> supplier, BiConsumer<R, ? super T> accumulator,
-      BiConsumer<R, R> combiner) {
-    return complete(s -> s.normalCollect(supplier, accumulator, combiner));
+  public <R> Future<R> collect(ThrowingSupplier<R, ?> supplier,
+      ThrowingBiConsumer<R, ? super T, ?> accumulator, ThrowingBiConsumer<R, R, ?> combiner) {
+    return complete(s -> s.collect(getFunctionAdapter().convert(supplier),
+        getFunctionAdapter().convert(accumulator), getFunctionAdapter().convert(combiner)));
   }
 
   @Override
-  public <R, A> Future<R> collect(Collector<? super T, A, R> collector) {
-    return complete(UnionStream::collect, collector);
+  public <R, A> Future<R> collect(ThrowingCollector<? super T, A, R, ?> collector) {
+    return complete(UnionStream::collect, getFunctionAdapter().convert(collector));
   }
 
   @Override
-  public Future<Optional<T>> min(Comparator<? super T> comparator) {
-    return complete(UnionStream::normalMin, comparator);
+  public Future<Optional<T>> min(ThrowingComparator<? super T, ?> comparator) {
+    return complete(UnionStream<T, FutureThrowable>::min, getFunctionAdapter().convert(comparator));
   }
 
   @Override
-  public Future<Optional<T>> max(Comparator<? super T> comparator) {
-    return complete(UnionStream::normalMax, comparator);
+  public Future<Optional<T>> max(ThrowingComparator<? super T, ?> comparator) {
+    return complete(UnionStream<T, FutureThrowable>::max, getFunctionAdapter().convert(comparator));
   }
 
   @Override
@@ -202,18 +165,21 @@ class FutureStreamAdapter<T> extends
   }
 
   @Override
-  public Future<Boolean> anyMatch(Predicate<? super T> predicate) {
-    return complete(UnionStream::normalAnyMatch, predicate);
+  public Future<Boolean> anyMatch(ThrowingPredicate<? super T, ?> predicate) {
+    return complete(UnionStream<T, FutureThrowable>::anyMatch,
+        getFunctionAdapter().convert(predicate));
   }
 
   @Override
-  public Future<Boolean> allMatch(Predicate<? super T> predicate) {
-    return complete(UnionStream::normalAllMatch, predicate);
+  public Future<Boolean> allMatch(ThrowingPredicate<? super T, ?> predicate) {
+    return complete(UnionStream<T, FutureThrowable>::allMatch,
+        getFunctionAdapter().convert(predicate));
   }
 
   @Override
-  public Future<Boolean> noneMatch(Predicate<? super T> predicate) {
-    return complete(UnionStream::normalNoneMatch, predicate);
+  public Future<Boolean> noneMatch(ThrowingPredicate<? super T, ?> predicate) {
+    return complete(UnionStream<T, FutureThrowable>::noneMatch,
+        getFunctionAdapter().convert(predicate));
   }
 
   @Override

@@ -4,80 +4,63 @@ import java.util.IntSummaryStatistics;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.concurrent.Future;
-import java.util.function.BiConsumer;
-import java.util.function.IntBinaryOperator;
-import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
-import java.util.function.IntPredicate;
-import java.util.function.IntToDoubleFunction;
-import java.util.function.IntToLongFunction;
-import java.util.function.IntUnaryOperator;
-import java.util.function.ObjIntConsumer;
-import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
-public interface FutureIntStream extends FutureBaseStream<Integer, FutureIntStream> {
+import throwing.function.ThrowingBiConsumer;
+import throwing.function.ThrowingIntBinaryOperator;
+import throwing.function.ThrowingIntConsumer;
+import throwing.function.ThrowingIntFunction;
+import throwing.function.ThrowingIntPredicate;
+import throwing.function.ThrowingObjIntConsumer;
+import throwing.function.ThrowingSupplier;
+import throwing.stream.intermediate.ThrowingIntStreamIntermediate;
 
-    public FutureIntStream filter(IntPredicate predicate);
+public interface FutureIntStream extends
+    FutureBaseStream<Integer, FutureIntStream>,
+    ThrowingIntStreamIntermediate<Throwable, FutureIntStream, FutureLongStream, FutureDoubleStream> {
+  @Override
+  default public <U> FutureStream<U> normalMapToObj(IntFunction<? extends U> mapper) {
+    return mapToObj(mapper::apply);
+  }
 
-    public FutureIntStream map(IntUnaryOperator mapper);
+  @Override
+  public <U> FutureStream<U> mapToObj(ThrowingIntFunction<? extends U, ? extends Throwable> mapper);
 
-    public <U> FutureStream<U> mapToObj(IntFunction<? extends U> mapper);
+  @Override
+  public FutureStream<Integer> boxed();
 
-    public FutureLongStream mapToLong(IntToLongFunction mapper);
+  public Future<Void> forEach(ThrowingIntConsumer<?> action);
 
-    public FutureDoubleStream mapToDouble(IntToDoubleFunction mapper);
+  public Future<Void> forEachOrdered(ThrowingIntConsumer<?> action);
 
-    public FutureIntStream flatMap(IntFunction<? extends IntStream> mapper);
+  public Future<int[]> toArray();
 
-    public FutureIntStream distinct();
+  public Future<Integer> reduce(int identity, ThrowingIntBinaryOperator<?> op);
 
-    public FutureIntStream sorted();
+  public Future<OptionalInt> reduce(ThrowingIntBinaryOperator<?> op);
 
-    public FutureIntStream peek(IntConsumer action);
+  public <R> Future<R> collect(ThrowingSupplier<R,?> supplier, ThrowingObjIntConsumer<R,?> accumulator,
+      ThrowingBiConsumer<R, R,?> combiner);
 
-    public FutureIntStream limit(long maxSize);
+  public Future<Integer> sum();
 
-    public FutureIntStream skip(long n);
+  public Future<OptionalInt> min();
 
-    public void forEach(IntConsumer action);
+  public Future<OptionalInt> max();
 
-    public void forEachOrdered(IntConsumer action);
+  public Future<Long> count();
 
-    public Future<int[]> toArray();
+  public Future<OptionalDouble> average();
 
-    public Future<Integer> reduce(int identity, IntBinaryOperator op);
+  public Future<IntSummaryStatistics> summaryStatistics();
 
-    public Future<OptionalInt> reduce(IntBinaryOperator op);
+  public Future<Boolean> anyMatch(ThrowingIntPredicate<?> predicate);
 
-    public <R> Future<R> collect(Supplier<R> supplier, ObjIntConsumer<R> accumulator,
-            BiConsumer<R, R> combiner);
+  public Future<Boolean> allMatch(ThrowingIntPredicate<?> predicate);
 
-    public Future<Integer> sum();
+  public Future<Boolean> noneMatch(ThrowingIntPredicate<?> predicate);
 
-    public Future<OptionalInt> min();
+  public Future<OptionalInt> findFirst();
 
-    public Future<OptionalInt> max();
-
-    public Future<Long> count();
-
-    public Future<OptionalDouble> average();
-
-    public Future<IntSummaryStatistics> summaryStatistics();
-
-    public Future<Boolean> anyMatch(IntPredicate predicate);
-
-    public Future<Boolean> allMatch(IntPredicate predicate);
-
-    public Future<Boolean> noneMatch(IntPredicate predicate);
-
-    public Future<OptionalInt> findFirst();
-
-    public Future<OptionalInt> findAny();
-
-    public FutureLongStream asLongStream();
-
-    public FutureDoubleStream asDoubleStream();
-
-    public FutureStream<Integer> boxed();
+  public Future<OptionalInt> findAny();
 }

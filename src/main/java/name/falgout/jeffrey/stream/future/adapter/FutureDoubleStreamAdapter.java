@@ -2,31 +2,29 @@ package name.falgout.jeffrey.stream.future.adapter;
 
 import java.util.DoubleSummaryStatistics;
 import java.util.OptionalDouble;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
-import java.util.function.BiConsumer;
-import java.util.function.DoubleBinaryOperator;
-import java.util.function.DoubleConsumer;
-import java.util.function.DoubleFunction;
-import java.util.function.DoublePredicate;
-import java.util.function.DoubleToIntFunction;
-import java.util.function.DoubleToLongFunction;
-import java.util.function.DoubleUnaryOperator;
-import java.util.function.ObjDoubleConsumer;
-import java.util.function.Supplier;
-import java.util.stream.DoubleStream;
 
 import name.falgout.jeffrey.stream.future.FutureDoubleStream;
 import name.falgout.jeffrey.stream.future.FutureIntStream;
 import name.falgout.jeffrey.stream.future.FutureLongStream;
 import name.falgout.jeffrey.stream.future.FutureStream;
-import throwing.Nothing;
-import throwing.stream.ThrowingDoubleStream;
-import throwing.stream.adapter.ThrowingBridge;
+import throwing.function.ThrowingBiConsumer;
+import throwing.function.ThrowingDoubleBinaryOperator;
+import throwing.function.ThrowingDoubleConsumer;
+import throwing.function.ThrowingDoubleFunction;
+import throwing.function.ThrowingDoublePredicate;
+import throwing.function.ThrowingObjDoubleConsumer;
+import throwing.function.ThrowingSupplier;
+import throwing.stream.intermediate.adapter.ThrowingDoubleStreamIntermediateAdapter;
 import throwing.stream.union.UnionDoubleStream;
+import throwing.stream.union.UnionIntStream;
+import throwing.stream.union.UnionLongStream;
 
 class FutureDoubleStreamAdapter extends
     FutureBaseStreamAdapter<Double, UnionDoubleStream<FutureThrowable>, FutureDoubleStream> implements
+    ThrowingDoubleStreamIntermediateAdapter<Throwable, ExecutionException, UnionIntStream<FutureThrowable>, UnionLongStream<FutureThrowable>, UnionDoubleStream<FutureThrowable>, FutureIntStream, FutureLongStream, FutureDoubleStream>,
     FutureDoubleStream {
 
   FutureDoubleStreamAdapter(UnionDoubleStream<FutureThrowable> delegate, Executor executor) {
@@ -53,69 +51,47 @@ class FutureDoubleStreamAdapter extends
   }
 
   @Override
-  public FutureDoubleStream filter(DoublePredicate predicate) {
-    return chain(UnionDoubleStream::normalFilter, predicate);
+  public FutureIntStream newIntStream(UnionIntStream<FutureThrowable> delegate) {
+    return new FutureIntStreamAdapter(delegate, this);
   }
 
   @Override
-  public FutureDoubleStream map(DoubleUnaryOperator mapper) {
-    return chain(UnionDoubleStream::normalMap, mapper);
+  public FutureLongStream newLongStream(UnionLongStream<FutureThrowable> delegate) {
+    return new FutureLongStreamAdapter(delegate, this);
   }
 
   @Override
-  public <U> FutureStream<U> mapToObj(DoubleFunction<? extends U> mapper) {
-    return new FutureStreamAdapter<>(getDelegate().normalMapToObj(mapper), this);
+  public throwing.stream.terminal.ThrowingBaseStreamTerminal.Iterator<Double, Throwable, Throwable> iterator() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("TODO");
   }
 
   @Override
-  public FutureLongStream mapToLong(DoubleToLongFunction mapper) {
-    return new FutureLongStreamAdapter(getDelegate().normalMapToLong(mapper), this);
+  public throwing.stream.terminal.ThrowingBaseStreamTerminal.BaseSpliterator<Double, Throwable, Throwable, ?> spliterator() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("TODO");
+  };
+
+  @Override
+  public FutureStream<Double> boxed() {
+    return new FutureStreamAdapter<Double>(getDelegate().boxed(), this);
   }
 
   @Override
-  public FutureIntStream mapToInt(DoubleToIntFunction mapper) {
-    return new FutureIntStreamAdapter(getDelegate().normalMapToInt(mapper), this);
+  public <U> FutureStream<U> mapToObj(
+      ThrowingDoubleFunction<? extends U, ? extends Throwable> mapper) {
+    return new FutureStreamAdapter<>(getDelegate().mapToObj(getFunctionAdapter().convert(mapper)),
+        this);
   }
 
   @Override
-  public FutureDoubleStream flatMap(DoubleFunction<? extends DoubleStream> mapper) {
-    DoubleFunction<? extends ThrowingDoubleStream<Nothing>> f = i -> ThrowingBridge.of(mapper.apply(i));
-    return chain(UnionDoubleStream::normalFlatMap, f);
+  public Future<Void> forEach(ThrowingDoubleConsumer<?> action) {
+    return completeVoid(UnionDoubleStream::forEach, getFunctionAdapter().convert(action));
   }
 
   @Override
-  public FutureDoubleStream distinct() {
-    return chain(UnionDoubleStream::distinct);
-  }
-
-  @Override
-  public FutureDoubleStream sorted() {
-    return chain(UnionDoubleStream::sorted);
-  }
-
-  @Override
-  public FutureDoubleStream peek(DoubleConsumer action) {
-    return chain(UnionDoubleStream::normalPeek, action);
-  }
-
-  @Override
-  public FutureDoubleStream limit(long maxSize) {
-    return chain(UnionDoubleStream::limit, maxSize);
-  }
-
-  @Override
-  public FutureDoubleStream skip(long n) {
-    return chain(UnionDoubleStream::skip, n);
-  }
-
-  @Override
-  public void forEach(DoubleConsumer action) {
-    completeVoid(UnionDoubleStream::normalForEach, action);
-  }
-
-  @Override
-  public void forEachOrdered(DoubleConsumer action) {
-    completeVoid(UnionDoubleStream::normalForEachOrdered, action);
+  public Future<Void> forEachOrdered(ThrowingDoubleConsumer<?> action) {
+    return completeVoid(UnionDoubleStream::forEachOrdered, getFunctionAdapter().convert(action));
   }
 
   @Override
@@ -124,19 +100,20 @@ class FutureDoubleStreamAdapter extends
   }
 
   @Override
-  public Future<Double> reduce(double identity, DoubleBinaryOperator op) {
-    return complete(s -> s.normalReduce(identity, op));
+  public Future<Double> reduce(double identity, ThrowingDoubleBinaryOperator<?> op) {
+    return complete(s -> s.reduce(identity, getFunctionAdapter().convert(op)));
   }
 
   @Override
-  public Future<OptionalDouble> reduce(DoubleBinaryOperator op) {
-    return complete(UnionDoubleStream::normalReduce, op);
+  public Future<OptionalDouble> reduce(ThrowingDoubleBinaryOperator<?> op) {
+    return complete(UnionDoubleStream::reduce, getFunctionAdapter().convert(op));
   }
 
   @Override
-  public <R> Future<R> collect(Supplier<R> supplier, ObjDoubleConsumer<R> accumulator,
-      BiConsumer<R, R> combiner) {
-    return complete(s -> s.normalCollect(supplier, accumulator, combiner));
+  public <R> Future<R> collect(ThrowingSupplier<R, ?> supplier,
+      ThrowingObjDoubleConsumer<R, ?> accumulator, ThrowingBiConsumer<R, R, ?> combiner) {
+    return complete(s -> s.collect(getFunctionAdapter().convert(supplier),
+        getFunctionAdapter().convert(accumulator), getFunctionAdapter().convert(combiner)));
   }
 
   @Override
@@ -170,18 +147,18 @@ class FutureDoubleStreamAdapter extends
   }
 
   @Override
-  public Future<Boolean> anyMatch(DoublePredicate predicate) {
-    return complete(UnionDoubleStream::normalAnyMatch, predicate);
+  public Future<Boolean> anyMatch(ThrowingDoublePredicate<?> predicate) {
+    return complete(UnionDoubleStream::anyMatch, getFunctionAdapter().convert(predicate));
   }
 
   @Override
-  public Future<Boolean> allMatch(DoublePredicate predicate) {
-    return complete(UnionDoubleStream::normalAllMatch, predicate);
+  public Future<Boolean> allMatch(ThrowingDoublePredicate<?> predicate) {
+    return complete(UnionDoubleStream::allMatch, getFunctionAdapter().convert(predicate));
   }
 
   @Override
-  public Future<Boolean> noneMatch(DoublePredicate predicate) {
-    return complete(UnionDoubleStream::normalNoneMatch, predicate);
+  public Future<Boolean> noneMatch(ThrowingDoublePredicate<?> predicate) {
+    return complete(UnionDoubleStream::noneMatch, getFunctionAdapter().convert(predicate));
   }
 
   @Override
@@ -192,10 +169,5 @@ class FutureDoubleStreamAdapter extends
   @Override
   public Future<OptionalDouble> findAny() {
     return complete(UnionDoubleStream::findAny);
-  }
-
-  @Override
-  public FutureStream<Double> boxed() {
-    return new FutureStreamAdapter<Double>(getDelegate().boxed(), this);
   }
 }

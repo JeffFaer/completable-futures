@@ -3,31 +3,29 @@ package name.falgout.jeffrey.stream.future.adapter;
 import java.util.LongSummaryStatistics;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
-import java.util.function.BiConsumer;
-import java.util.function.LongBinaryOperator;
-import java.util.function.LongConsumer;
-import java.util.function.LongFunction;
-import java.util.function.LongPredicate;
-import java.util.function.LongToDoubleFunction;
-import java.util.function.LongToIntFunction;
-import java.util.function.LongUnaryOperator;
-import java.util.function.ObjLongConsumer;
-import java.util.function.Supplier;
-import java.util.stream.LongStream;
 
 import name.falgout.jeffrey.stream.future.FutureDoubleStream;
 import name.falgout.jeffrey.stream.future.FutureIntStream;
 import name.falgout.jeffrey.stream.future.FutureLongStream;
 import name.falgout.jeffrey.stream.future.FutureStream;
-import throwing.Nothing;
-import throwing.stream.ThrowingLongStream;
-import throwing.stream.adapter.ThrowingBridge;
+import throwing.function.ThrowingBiConsumer;
+import throwing.function.ThrowingLongBinaryOperator;
+import throwing.function.ThrowingLongConsumer;
+import throwing.function.ThrowingLongFunction;
+import throwing.function.ThrowingLongPredicate;
+import throwing.function.ThrowingObjLongConsumer;
+import throwing.function.ThrowingSupplier;
+import throwing.stream.intermediate.adapter.ThrowingLongStreamIntermediateAdapter;
+import throwing.stream.union.UnionDoubleStream;
+import throwing.stream.union.UnionIntStream;
 import throwing.stream.union.UnionLongStream;
 
 class FutureLongStreamAdapter extends
     FutureBaseStreamAdapter<Long, UnionLongStream<FutureThrowable>, FutureLongStream> implements
+    ThrowingLongStreamIntermediateAdapter<Throwable, ExecutionException, UnionIntStream<FutureThrowable>, UnionLongStream<FutureThrowable>, UnionDoubleStream<FutureThrowable>, FutureIntStream, FutureLongStream, FutureDoubleStream>,
     FutureLongStream {
 
   FutureLongStreamAdapter(UnionLongStream<FutureThrowable> delegate, Executor executor) {
@@ -54,69 +52,46 @@ class FutureLongStreamAdapter extends
   }
 
   @Override
-  public FutureLongStream filter(LongPredicate predicate) {
-    return chain(UnionLongStream::normalFilter, predicate);
+  public FutureIntStream newIntStream(UnionIntStream<FutureThrowable> delegate) {
+    return new FutureIntStreamAdapter(delegate, this);
   }
 
   @Override
-  public FutureLongStream map(LongUnaryOperator mapper) {
-    return chain(UnionLongStream::normalMap, mapper);
+  public FutureDoubleStream newDoubleStream(UnionDoubleStream<FutureThrowable> delegate) {
+    return new FutureDoubleStreamAdapter(delegate, this);
   }
 
   @Override
-  public <U> FutureStream<U> mapToObj(LongFunction<? extends U> mapper) {
-    return new FutureStreamAdapter<>(getDelegate().normalMapToObj(mapper), this);
+  public throwing.stream.terminal.ThrowingBaseStreamTerminal.Iterator<Long, Throwable, Throwable> iterator() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("TODO");
   }
 
   @Override
-  public FutureIntStream mapToInt(LongToIntFunction mapper) {
-    return new FutureIntStreamAdapter(getDelegate().normalMapToInt(mapper), this);
+  public throwing.stream.terminal.ThrowingBaseStreamTerminal.BaseSpliterator<Long, Throwable, Throwable, ?> spliterator() {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("TODO");
+  };
+
+  @Override
+  public FutureStream<Long> boxed() {
+    return new FutureStreamAdapter<Long>(getDelegate().boxed(), this);
   }
 
   @Override
-  public FutureDoubleStream mapToDouble(LongToDoubleFunction mapper) {
-    return new FutureDoubleStreamAdapter(getDelegate().normalMapToDouble(mapper), this);
+  public <U> FutureStream<U> mapToObj(ThrowingLongFunction<? extends U, ? extends Throwable> mapper) {
+    return new FutureStreamAdapter<>(getDelegate().mapToObj(getFunctionAdapter().convert(mapper)),
+        this);
   }
 
   @Override
-  public FutureLongStream flatMap(LongFunction<? extends LongStream> mapper) {
-    LongFunction<? extends ThrowingLongStream<Nothing>> f = i -> ThrowingBridge.of(mapper.apply(i));
-    return chain(UnionLongStream::normalFlatMap, f);
+  public Future<Void> forEach(ThrowingLongConsumer<?> action) {
+    return completeVoid(UnionLongStream::forEach, getFunctionAdapter().convert(action));
   }
 
   @Override
-  public FutureLongStream distinct() {
-    return chain(UnionLongStream::distinct);
-  }
-
-  @Override
-  public FutureLongStream sorted() {
-    return chain(UnionLongStream::sorted);
-  }
-
-  @Override
-  public FutureLongStream peek(LongConsumer action) {
-    return chain(UnionLongStream::normalPeek, action);
-  }
-
-  @Override
-  public FutureLongStream limit(long maxSize) {
-    return chain(UnionLongStream::limit, maxSize);
-  }
-
-  @Override
-  public FutureLongStream skip(long n) {
-    return chain(UnionLongStream::skip, n);
-  }
-
-  @Override
-  public void forEach(LongConsumer action) {
-    completeVoid(UnionLongStream::normalForEach, action);
-  }
-
-  @Override
-  public void forEachOrdered(LongConsumer action) {
-    completeVoid(UnionLongStream::normalForEachOrdered, action);
+  public Future<Void> forEachOrdered(ThrowingLongConsumer<?> action) {
+    return completeVoid(UnionLongStream::forEachOrdered, getFunctionAdapter().convert(action));
   }
 
   @Override
@@ -125,19 +100,20 @@ class FutureLongStreamAdapter extends
   }
 
   @Override
-  public Future<Long> reduce(long identity, LongBinaryOperator op) {
-    return complete(s -> s.normalReduce(identity, op));
+  public Future<Long> reduce(long identity, ThrowingLongBinaryOperator<?> op) {
+    return complete(s -> s.reduce(identity, getFunctionAdapter().convert(op)));
   }
 
   @Override
-  public Future<OptionalLong> reduce(LongBinaryOperator op) {
-    return complete(UnionLongStream::normalReduce, op);
+  public Future<OptionalLong> reduce(ThrowingLongBinaryOperator<?> op) {
+    return complete(UnionLongStream::reduce, getFunctionAdapter().convert(op));
   }
 
   @Override
-  public <R> Future<R> collect(Supplier<R> supplier, ObjLongConsumer<R> accumulator,
-      BiConsumer<R, R> combiner) {
-    return complete(s -> s.normalCollect(supplier, accumulator, combiner));
+  public <R> Future<R> collect(ThrowingSupplier<R, ?> supplier,
+      ThrowingObjLongConsumer<R, ?> accumulator, ThrowingBiConsumer<R, R, ?> combiner) {
+    return complete(s -> s.collect(getFunctionAdapter().convert(supplier),
+        getFunctionAdapter().convert(accumulator), getFunctionAdapter().convert(combiner)));
   }
 
   @Override
@@ -171,18 +147,18 @@ class FutureLongStreamAdapter extends
   }
 
   @Override
-  public Future<Boolean> anyMatch(LongPredicate predicate) {
-    return complete(UnionLongStream::normalAnyMatch, predicate);
+  public Future<Boolean> anyMatch(ThrowingLongPredicate<?> predicate) {
+    return complete(UnionLongStream::anyMatch, getFunctionAdapter().convert(predicate));
   }
 
   @Override
-  public Future<Boolean> allMatch(LongPredicate predicate) {
-    return complete(UnionLongStream::normalAllMatch, predicate);
+  public Future<Boolean> allMatch(ThrowingLongPredicate<?> predicate) {
+    return complete(UnionLongStream::allMatch, getFunctionAdapter().convert(predicate));
   }
 
   @Override
-  public Future<Boolean> noneMatch(LongPredicate predicate) {
-    return complete(UnionLongStream::normalNoneMatch, predicate);
+  public Future<Boolean> noneMatch(ThrowingLongPredicate<?> predicate) {
+    return complete(UnionLongStream::noneMatch, getFunctionAdapter().convert(predicate));
   }
 
   @Override
@@ -193,15 +169,5 @@ class FutureLongStreamAdapter extends
   @Override
   public Future<OptionalLong> findAny() {
     return complete(UnionLongStream::findAny);
-  }
-
-  @Override
-  public FutureDoubleStream asDoubleStream() {
-    return new FutureDoubleStreamAdapter(getDelegate().asDoubleStream(), this);
-  }
-
-  @Override
-  public FutureStream<Long> boxed() {
-    return new FutureStreamAdapter<Long>(getDelegate().boxed(), this);
   }
 }

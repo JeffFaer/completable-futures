@@ -3,75 +3,64 @@ package name.falgout.jeffrey.stream.future;
 import java.util.DoubleSummaryStatistics;
 import java.util.OptionalDouble;
 import java.util.concurrent.Future;
-import java.util.function.BiConsumer;
-import java.util.function.DoubleBinaryOperator;
-import java.util.function.DoubleConsumer;
 import java.util.function.DoubleFunction;
-import java.util.function.DoublePredicate;
-import java.util.function.DoubleToIntFunction;
-import java.util.function.DoubleToLongFunction;
-import java.util.function.DoubleUnaryOperator;
-import java.util.function.ObjDoubleConsumer;
-import java.util.function.Supplier;
-import java.util.stream.DoubleStream;
 
-public interface FutureDoubleStream extends FutureBaseStream<Double, FutureDoubleStream> {
-    public FutureDoubleStream filter(DoublePredicate predicate);
+import throwing.function.ThrowingBiConsumer;
+import throwing.function.ThrowingDoubleBinaryOperator;
+import throwing.function.ThrowingDoubleConsumer;
+import throwing.function.ThrowingDoubleFunction;
+import throwing.function.ThrowingDoublePredicate;
+import throwing.function.ThrowingObjDoubleConsumer;
+import throwing.function.ThrowingSupplier;
+import throwing.stream.intermediate.ThrowingDoubleStreamIntermediate;
 
-    public FutureDoubleStream map(DoubleUnaryOperator mapper);
+public interface FutureDoubleStream extends
+    FutureBaseStream<Double, FutureDoubleStream>,
+    ThrowingDoubleStreamIntermediate<Throwable, FutureIntStream, FutureLongStream, FutureDoubleStream> {
+  @Override
+  default public <U> FutureStream<U> normalMapToObj(DoubleFunction<? extends U> mapper) {
+    return mapToObj(mapper::apply);
+  }
 
-    public <U> FutureStream<U> mapToObj(DoubleFunction<? extends U> mapper);
+  @Override
+  public <U> FutureStream<U> mapToObj(
+      ThrowingDoubleFunction<? extends U, ? extends Throwable> mapper);
 
-    public FutureIntStream mapToInt(DoubleToIntFunction mapper);
+  @Override
+  public FutureStream<Double> boxed();
 
-    public FutureLongStream mapToLong(DoubleToLongFunction mapper);
+  public Future<Void> forEach(ThrowingDoubleConsumer<?> action);
 
-    public FutureDoubleStream flatMap(DoubleFunction<? extends DoubleStream> mapper);
+  public Future<Void> forEachOrdered(ThrowingDoubleConsumer<?> action);
 
-    public FutureDoubleStream distinct();
+  public Future<double[]> toArray();
 
-    public FutureDoubleStream sorted();
+  public Future<Double> reduce(double identity, ThrowingDoubleBinaryOperator<?> op);
 
-    public FutureDoubleStream peek(DoubleConsumer action);
+  public Future<OptionalDouble> reduce(ThrowingDoubleBinaryOperator<?> op);
 
-    public FutureDoubleStream limit(long maxSize);
+  public <R> Future<R> collect(ThrowingSupplier<R, ?> supplier,
+      ThrowingObjDoubleConsumer<R, ?> accumulator, ThrowingBiConsumer<R, R, ?> combiner);
 
-    public FutureDoubleStream skip(long n);
+  public Future<Double> sum();
 
-    public void forEach(DoubleConsumer action);
+  public Future<OptionalDouble> min();
 
-    public void forEachOrdered(DoubleConsumer action);
+  public Future<OptionalDouble> max();
 
-    public Future<double[]> toArray();
+  public Future<Long> count();
 
-    public Future<Double> reduce(double identity, DoubleBinaryOperator op);
+  public Future<OptionalDouble> average();
 
-    public Future<OptionalDouble> reduce(DoubleBinaryOperator op);
+  public Future<DoubleSummaryStatistics> summaryStatistics();
 
-    public <R> Future<R> collect(Supplier<R> supplier, ObjDoubleConsumer<R> accumulator,
-            BiConsumer<R, R> combiner);
+  public Future<Boolean> anyMatch(ThrowingDoublePredicate<?> predicate);
 
-    public Future<Double> sum();
+  public Future<Boolean> allMatch(ThrowingDoublePredicate<?> predicate);
 
-    public Future<OptionalDouble> min();
+  public Future<Boolean> noneMatch(ThrowingDoublePredicate<?> predicate);
 
-    public Future<OptionalDouble> max();
+  public Future<OptionalDouble> findFirst();
 
-    public Future<Long> count();
-
-    public Future<OptionalDouble> average();
-
-    public Future<DoubleSummaryStatistics> summaryStatistics();
-
-    public Future<Boolean> anyMatch(DoublePredicate predicate);
-
-    public Future<Boolean> allMatch(DoublePredicate predicate);
-
-    public Future<Boolean> noneMatch(DoublePredicate predicate);
-
-    public Future<OptionalDouble> findFirst();
-
-    public Future<OptionalDouble> findAny();
-
-    public FutureStream<Double> boxed();
+  public Future<OptionalDouble> findAny();
 }

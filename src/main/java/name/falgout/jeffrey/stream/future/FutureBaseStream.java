@@ -1,11 +1,8 @@
 package name.falgout.jeffrey.stream.future;
 
-import java.util.stream.BaseStream;
+import throwing.stream.intermediate.ThrowingBaseStreamIntermediate;
+import throwing.stream.terminal.ThrowingBaseStreamTerminal;
 
-public interface FutureBaseStream<T, S extends FutureBaseStream<T, S>> extends BaseStream<T, S> {
-    @Override
-    public FutureSpliterator<T> spliterator();
-
-    @Override
-    public FutureIterator<T> iterator();
-}
+public interface FutureBaseStream<T, S extends FutureBaseStream<T, S>> extends
+    ThrowingBaseStreamIntermediate<S>,
+    ThrowingBaseStreamTerminal<T, Throwable, Throwable> {}
