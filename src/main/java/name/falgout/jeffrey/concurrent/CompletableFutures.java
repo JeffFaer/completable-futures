@@ -4,9 +4,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
@@ -19,35 +17,61 @@ import java.util.stream.StreamSupport;
 
 import name.falgout.jeffrey.stream.future.FutureStream;
 import name.falgout.jeffrey.stream.future.adapter.FutureStreamBridge;
+import throwing.function.ThrowingSupplier;
 
 public final class CompletableFutures {
   private CompletableFutures() {}
 
   public static <T> CompletableFuture<T> newCompletableFuture(Future<T> future) {
-    return newCompletableFuture(future, CompletableFuture::supplyAsync);
+    return newCompletableFuture(future,
+        (Function<Runnable, CompletableFuture<Void>>) CompletableFuture::runAsync);
   }
 
   public static <T> CompletableFuture<T> newCompletableFuture(Future<T> future, Executor executor) {
     return newCompletableFuture(future,
-        (Supplier<T> s) -> CompletableFuture.supplyAsync(s, executor));
+        (Function<Runnable, CompletableFuture<Void>>) r -> CompletableFuture.runAsync(r, executor));
   }
 
   private static <T> CompletableFuture<T> newCompletableFuture(Future<T> future,
-      Function<Supplier<T>, CompletableFuture<T>> mapper) {
+      Function<Runnable, CompletableFuture<Void>> executor) {
     return future instanceof CompletableFuture ? (CompletableFuture<T>) future
-        : mapper.apply(asSupplier(future));
+        : newCompletableFuture(() -> {
+          try {
+            return future.get();
+          } catch (ExecutionException e) {
+            throw e.getCause();
+          }
+        }, executor);
   }
 
-  private static <T> Supplier<T> asSupplier(Future<T> future) {
-    return () -> {
+  public static <T> CompletableFuture<T> newCompletableFuture(ThrowingSupplier<T, ?> supplier) {
+    return newCompletableFuture(supplier,
+        (Function<Runnable, CompletableFuture<Void>>) CompletableFuture::runAsync);
+  }
+
+  public static <T> CompletableFuture<T> newCompletableFuture(ThrowingSupplier<T, ?> supplier,
+      Executor executor) {
+    return newCompletableFuture(supplier,
+        (Function<Runnable, CompletableFuture<Void>>) r -> CompletableFuture.runAsync(r, executor));
+  }
+
+  private static <T> CompletableFuture<T> newCompletableFuture(ThrowingSupplier<T, ?> supplier,
+      Function<Runnable, CompletableFuture<Void>> executor) {
+    CompletableFuture<T> future = new CompletableFuture<>();
+    executor.apply(() -> {
       try {
-        return future.get();
-      } catch (CancellationException | InterruptedException e) {
-        throw new CompletionException(e);
-      } catch (ExecutionException e) {
-        throw new CompletionException(e.getCause());
+        future.complete(supplier.get());
+      } catch (Throwable t) {
+        future.completeExceptionally(t);
       }
-    };
+    });
+    return future;
+  }
+
+  public static <T> CompletableFuture<T> failed(Throwable cause) {
+    CompletableFuture<T> f = new CompletableFuture<>();
+    f.completeExceptionally(cause);
+    return f;
   }
 
   public static <T, A, R> Collector<Future<T>, ?, ? extends Future<R>> collector(

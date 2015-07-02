@@ -2,13 +2,18 @@ package name.falgout.jeffrey.concurrent;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -29,6 +34,123 @@ public class CompletableFuturesTest {
   public void setup() {
     for (int i = 0; i < 100; i++) {
       futures.add(new CompletableFuture<>());
+    }
+  }
+
+  @Test
+  public void testFailedThrowsCorrectException() throws InterruptedException {
+    IOException e = new IOException();
+    CompletableFuture<Void> f = CompletableFutures.failed(e);
+
+    try {
+      f.get();
+      fail("expected exception");
+    } catch (ExecutionException ex) {
+      assertSame(e, ex.getCause());
+    }
+  }
+
+  @Test
+  public void testNewThrowsCorrectExecutionException() throws InterruptedException,
+      ExecutionException {
+    IOException cause = new IOException();
+    ExecutionException e = new ExecutionException(cause);
+
+    Future<Void> f = mock(Future.class);
+    when(f.get()).thenThrow(e);
+
+    CompletableFuture<Void> cf = CompletableFutures.newCompletableFuture(f);
+    try {
+      cf.get();
+      fail("expected exception");
+    } catch (ExecutionException ex) {
+      assertSame(cause, ex.getCause());
+    }
+  }
+
+  @Test
+  public void testNewThrowsCorrectCancellationException() throws InterruptedException,
+      ExecutionException {
+    CancellationException e = new CancellationException();
+
+    Future<Void> f = mock(Future.class);
+    when(f.get()).thenThrow(e);
+
+    CompletableFuture<Void> cf = CompletableFutures.newCompletableFuture(f);
+    try {
+      cf.get();
+      fail("expected exception");
+    } catch (CancellationException ex) {
+      assertSame(e, ex);
+    }
+  }
+
+  @Test
+  public void testNewThrowsCorrectInterruptedException() throws InterruptedException,
+      ExecutionException {
+    InterruptedException e = new InterruptedException();
+
+    Future<Void> f = mock(Future.class);
+    when(f.get()).thenThrow(e);
+
+    CompletableFuture<Void> cf = CompletableFutures.newCompletableFuture(f);
+    try {
+      cf.get();
+      fail("expected exception");
+    } catch (ExecutionException ex) {
+      assertSame(e, ex.getCause());
+    }
+  }
+
+  @Test
+  public void testFutureStreamThrowsCorrectExecutionException() throws InterruptedException,
+      ExecutionException {
+    IOException cause = new IOException();
+    ExecutionException e = new ExecutionException(cause);
+
+    Future<Void> f = mock(Future.class);
+    when(f.get()).thenThrow(e);
+
+    Future<?> cf = CompletableFutures.stream(f).count();
+    try {
+      cf.get();
+      fail("expected exception");
+    } catch (ExecutionException ex) {
+      assertSame(cause, ex.getCause());
+    }
+  }
+
+  @Test
+  public void testfutureStreamThrowsCorrectCancellationException() throws InterruptedException,
+      ExecutionException {
+    CancellationException e = new CancellationException();
+
+    Future<Void> f = mock(Future.class);
+    when(f.get()).thenThrow(e);
+
+    Future<?> cf = CompletableFutures.stream(f).count();
+    try {
+      cf.get();
+      fail("expected exception");
+    } catch (CancellationException ex) {
+      assertSame(e, ex);
+    }
+  }
+
+  @Test
+  public void testFutureStreamThrowsCorrectInterruptedException() throws InterruptedException,
+      ExecutionException {
+    InterruptedException e = new InterruptedException();
+
+    Future<Void> f = mock(Future.class);
+    when(f.get()).thenThrow(e);
+
+    Future<?> cf = CompletableFutures.stream(f).count();
+    try {
+      cf.get();
+      fail("expected exception");
+    } catch (ExecutionException ex) {
+      assertSame(e, ex.getCause());
     }
   }
 
@@ -79,4 +201,5 @@ public class CompletableFuturesTest {
     collected.get();
     verify(mockAccumulator).accept(0, 99);
   }
+
 }
