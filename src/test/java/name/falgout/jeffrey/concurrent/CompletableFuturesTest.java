@@ -25,16 +25,16 @@ import name.falgout.jeffrey.stream.future.FutureStream;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 public class CompletableFuturesTest {
   private List<CompletableFuture<Integer>> futures = new ArrayList<>();
 
   @Before
   public void setup() {
-    for (int i = 0; i < 100; i++) {
-      futures.add(new CompletableFuture<>());
+    for (int i = 0; i < 99; i++) {
+      futures.add(CompletableFuture.completedFuture(i));
     }
+    futures.add(new CompletableFuture<>());
   }
 
   @Test
@@ -155,14 +155,26 @@ public class CompletableFuturesTest {
   }
 
   @Test
+  public void testFutureStreamThrowsCorrectOperationException() throws InterruptedException {
+    RuntimeException e = new RuntimeException();
+    FutureStream<Integer> stream = CompletableFutures.stream(futures).filter(i -> {
+      throw e;
+    });
+
+    Future<Long> count = stream.count();
+
+    try {
+      count.get();
+      fail("expected exception");
+    } catch (ExecutionException ex) {
+      assertSame(e, ex.getCause());
+    }
+  }
+
+  @Test
   public void testFutureStream() throws InterruptedException, ExecutionException {
     FutureStream<Integer> stream = CompletableFutures.stream(futures);
     Future<Integer> sum = stream.mapToInt(i -> i).sum();
-    assertFalse(sum.isDone());
-
-    for (int i = 0; i < 99; i++) {
-      futures.get(i).complete(i);
-    }
 
     assertFalse(sum.isDone());
     futures.get(99).complete(99);
@@ -186,14 +198,10 @@ public class CompletableFuturesTest {
     Future<Integer> collected = stream.collect(personalSum);
     assertFalse(collected.isDone());
 
-    for (int i = 0; i < 99; i++) {
-      futures.get(i).complete(i);
-    }
-
     l.await();
     assertFalse(collected.isDone());
     for (int i = 0; i < 98; i++) {
-      Mockito.verify(mockAccumulator).accept(0, i);
+      verify(mockAccumulator).accept(0, i);
     }
 
     futures.get(99).complete(99);
@@ -201,5 +209,4 @@ public class CompletableFuturesTest {
     collected.get();
     verify(mockAccumulator).accept(0, 99);
   }
-
 }
