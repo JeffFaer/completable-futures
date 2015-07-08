@@ -141,6 +141,17 @@ public final class CompletableFutures {
     return f.thenApply(Optional::get);
   }
 
+  /**
+   * Returns a new {@code Future} that is completed when any of the given {@code Future}s complete,
+   * with the same result. Otherwise, if it completed exceptionally, the returned {@code Future}
+   * also does so, with a CompletionException holding this exception as its cause. If no
+   * {@code Future}s are provided, returns a {@code Future} which contains {@code Optional.empty()}.
+   *
+   * @param futures
+   *          the futures
+   * @return a new {@code Future} that is completed with the result or exception of any of the given
+   *         {@code Future}s when one completes
+   */
   public static <T> Future<Optional<T>> anyOf(Iterable<? extends Future<T>> futures) {
     CompletableFuture<?>[] futuresArray = toArray(futures);
     if (futuresArray.length == 0) {
