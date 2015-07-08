@@ -1,9 +1,7 @@
 package name.falgout.jeffrey.stream.future.adapter;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
-import java.util.stream.Collector;
 import java.util.stream.Stream;
 
 import name.falgout.jeffrey.stream.future.FutureDoubleStream;
@@ -71,20 +69,5 @@ public final class FutureStreamBridge {
   private static UnionDoubleStream<FutureThrowable> unionizeDouble(
       Stream<Future<? extends Double>> futureStream) {
     return UnionStream.of(futureStream, FutureThrowable::new).mapToDouble(Future::get);
-  }
-
-  public static <T, A, R> Collector<CompletableFuture<T>, ?, CompletableFuture<R>> collector(
-      Collector<T, A, R> collector) {
-    return new CompletableFutureCollector<>(collector);
-  }
-
-  public static <T, A, R> Collector<CompletableFuture<T>, ?, CompletableFuture<R>> collectorAsync(
-      Collector<T, A, R> collector) {
-    return new CompletableFutureCollector<>(collector, (Void) null);
-  }
-
-  public static <T, A, R> Collector<CompletableFuture<T>, ?, CompletableFuture<R>> collectorAsync(
-      Collector<T, A, R> collector, Executor executor) {
-    return new CompletableFutureCollector<>(collector, executor);
   }
 }

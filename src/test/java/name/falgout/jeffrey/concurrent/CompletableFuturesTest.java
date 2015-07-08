@@ -1,8 +1,10 @@
 package name.falgout.jeffrey.concurrent;
 
+import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -13,28 +15,43 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collector;
+import java.util.stream.IntStream;
 
 import name.falgout.jeffrey.stream.future.FutureStream;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
+
+import throwing.function.ThrowingSupplier;
 
 public class CompletableFuturesTest {
-  private List<CompletableFuture<Integer>> futures = new ArrayList<>();
+  @Rule public Timeout timeout = new Timeout(500, TimeUnit.MILLISECONDS);
+
+  private List<CompletableFuture<Integer>> futures;
 
   @Before
   public void setup() {
-    for (int i = 0; i < 99; i++) {
-      futures.add(CompletableFuture.completedFuture(i));
+    futures = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      futures.add(new CompletableFuture<>());
     }
-    futures.add(new CompletableFuture<>());
+  }
+
+  public void complete(int limit) {
+    for (int i = 0; i < limit; i++) {
+      futures.get(i).complete(i);
+    }
   }
 
   @Test
@@ -51,32 +68,13 @@ public class CompletableFuturesTest {
   }
 
   @Test
-  public void testNewThrowsCorrectExecutionException() throws InterruptedException,
-      ExecutionException {
-    IOException cause = new IOException();
-    ExecutionException e = new ExecutionException(cause);
-
-    Future<Void> f = mock(Future.class);
-    when(f.get()).thenThrow(e);
-
-    CompletableFuture<Void> cf = CompletableFutures.newCompletableFuture(f);
-    try {
-      cf.get();
-      fail("expected exception");
-    } catch (ExecutionException ex) {
-      assertSame(cause, ex.getCause());
-    }
-  }
-
-  @Test
-  public void testNewThrowsCorrectCancellationException() throws InterruptedException,
-      ExecutionException {
+  public void testNewThrowsCorrectCancellationException() throws Throwable {
     CancellationException e = new CancellationException();
 
-    Future<Void> f = mock(Future.class);
-    when(f.get()).thenThrow(e);
+    ThrowingSupplier<Void, ?> s = mock(ThrowingSupplier.class);
+    when(s.get()).thenThrow(e);
 
-    CompletableFuture<Void> cf = CompletableFutures.newCompletableFuture(f);
+    CompletableFuture<Void> cf = CompletableFutures.newCompletableFuture(s);
     try {
       cf.get();
       fail("expected exception");
@@ -86,14 +84,13 @@ public class CompletableFuturesTest {
   }
 
   @Test
-  public void testNewThrowsCorrectInterruptedException() throws InterruptedException,
-      ExecutionException {
+  public void testNewThrowsCorrectInterruptedException() throws Throwable {
     InterruptedException e = new InterruptedException();
 
-    Future<Void> f = mock(Future.class);
-    when(f.get()).thenThrow(e);
+    ThrowingSupplier<Void, ?> s = mock(ThrowingSupplier.class);
+    when(s.get()).thenThrow(e);
 
-    CompletableFuture<Void> cf = CompletableFutures.newCompletableFuture(f);
+    CompletableFuture<Void> cf = CompletableFutures.newCompletableFuture(s);
     try {
       cf.get();
       fail("expected exception");
@@ -121,7 +118,7 @@ public class CompletableFuturesTest {
   }
 
   @Test
-  public void testfutureStreamThrowsCorrectCancellationException() throws InterruptedException,
+  public void testFutureStreamThrowsCorrectCancellationException() throws InterruptedException,
       ExecutionException {
     CancellationException e = new CancellationException();
 
@@ -161,6 +158,7 @@ public class CompletableFuturesTest {
       throw e;
     });
 
+    complete(100);
     Future<Long> count = stream.count();
 
     try {
@@ -176,6 +174,7 @@ public class CompletableFuturesTest {
     FutureStream<Integer> stream = CompletableFutures.stream(futures);
     Future<Integer> sum = stream.mapToInt(i -> i).sum();
 
+    complete(99);
     assertFalse(sum.isDone());
     futures.get(99).complete(99);
 
@@ -197,6 +196,7 @@ public class CompletableFuturesTest {
 
     Future<Integer> collected = stream.collect(personalSum);
     assertFalse(collected.isDone());
+    complete(99);
 
     l.await();
     assertFalse(collected.isDone());
@@ -208,5 +208,37 @@ public class CompletableFuturesTest {
 
     collected.get();
     verify(mockAccumulator).accept(0, 99);
+  }
+
+  @Test
+  public void testAnyOfIsNotSequential() throws InterruptedException, ExecutionException {
+    Future<Optional<Integer>> i = CompletableFutures.anyOf(futures);
+
+    futures.get(16).complete(16);
+
+    assertTrue(i.get().isPresent());
+    assertEquals(16, (int) i.get().get());
+  }
+
+  @Test
+  public void testNullAnyOf() throws InterruptedException, ExecutionException {
+    Future<Optional<Integer>> i = CompletableFutures.anyOf();
+    assertTrue(i.isDone());
+    assertFalse(i.get().isPresent());
+  }
+
+  @Test
+  public void testAllOf() throws InterruptedException, ExecutionException {
+    Future<List<Integer>> i = CompletableFutures.allOf(futures);
+    complete(100);
+
+    assertEquals(IntStream.range(0,100).boxed().collect(toList()), i.get());
+  }
+
+  @Test
+  public void testNullAllOf() throws InterruptedException, ExecutionException {
+    Future<List<Integer>> i = CompletableFutures.allOf();
+    assertTrue(i.isDone());
+    assertTrue(i.get().isEmpty());
   }
 }

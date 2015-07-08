@@ -19,6 +19,14 @@ import throwing.stream.ThrowingStream;
 import throwing.stream.adapter.ThrowingBridge;
 import throwing.stream.intermediate.ThrowingStreamIntermediate;
 
+/**
+ * A variant of a {@code ThrowingStream} where all of the terminal-operations return a
+ * {@code Future}. Any exception thrown from a behavioral parameter will be rethrown from the
+ * {@code Future} as an {@code ExecutionException}.
+ *
+ * @param <T>
+ *          the type of the stream elements
+ */
 public interface FutureStream<T> extends
     FutureBaseStream<T, FutureStream<T>>,
     ThrowingStreamIntermediate<T, Throwable, FutureStream<T>, FutureIntStream, FutureLongStream, FutureDoubleStream> {
