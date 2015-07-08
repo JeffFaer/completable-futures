@@ -232,7 +232,7 @@ public class CompletableFuturesTest {
     Future<List<Integer>> i = CompletableFutures.allOf(futures);
     complete(100);
 
-    assertEquals(IntStream.range(0,100).boxed().collect(toList()), i.get());
+    assertEquals(IntStream.range(0, 100).boxed().collect(toList()), i.get());
   }
 
   @Test
@@ -240,5 +240,20 @@ public class CompletableFuturesTest {
     Future<List<Integer>> i = CompletableFutures.allOf();
     assertTrue(i.isDone());
     assertTrue(i.get().isEmpty());
+  }
+
+  @Test
+  public void testFutureGetThrowsUnwrappedException() throws InterruptedException,
+      ExecutionException {
+    IOException cause = new IOException();
+    Future<Void> f = CompletableFutures.failed(cause);
+
+    ThrowingSupplier<?, ?> s = CompletableFutures.get(f);
+    try {
+      s.get();
+      fail("expected exception");
+    } catch (Throwable ex) {
+      assertSame(cause, ex);
+    }
   }
 }

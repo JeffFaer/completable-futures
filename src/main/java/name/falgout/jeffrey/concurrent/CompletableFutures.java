@@ -10,12 +10,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import name.falgout.jeffrey.stream.future.FutureStream;
 import name.falgout.jeffrey.stream.future.adapter.FutureStreamBridge;
+import throwing.function.ThrowingBiFunction;
 import throwing.function.ThrowingSupplier;
 
 public final class CompletableFutures {
@@ -76,6 +78,51 @@ public final class CompletableFutures {
   }
 
   /**
+   * Returns a supplier version of calling {@link Future#get() get} on a {@code Future}. If
+   * {@code get} throws an {@code ExecutionException}, it is unwrapped and its
+   * {@link ExecutionException#getCause() cause} is thrown instead.
+   *
+   * @param future
+   *          a {@code Future}
+   * @return a supplier version of {@code Future.get()}
+   */
+  public static <T> ThrowingSupplier<T, ?> get(Future<T> future) {
+    return get(future::get);
+  }
+
+  public static <T> ThrowingBiFunction<Long, TimeUnit, T, ?> getTimed(Future<T> future) {
+    return (timeout, unit) -> getTimed(future, timeout, unit).get();
+  }
+
+  public static <T> ThrowingSupplier<T, ?> getTimed(Future<T> future, long timeout, TimeUnit unit) {
+    return get(() -> future.get(timeout, unit));
+  }
+
+  private static <T> ThrowingSupplier<T, ?> get(ThrowingSupplier<T, ?> supplier) {
+    return () -> {
+      try {
+        return supplier.get();
+      } catch (Throwable t) {
+        if (t instanceof ExecutionException) {
+          t = t.getCause();
+        }
+
+        throw t;
+      }
+    };
+  }
+
+  public static <T> CompletableFuture<T> newCompletableFuture(Future<T> future) {
+    return future instanceof CompletableFuture ? (CompletableFuture<T>) future
+        : newCompletableFuture(get(future));
+  }
+
+  public static <T> CompletableFuture<T> newCompletableFuture(Future<T> future, Executor executor) {
+    return future instanceof CompletableFuture ? (CompletableFuture<T>) future
+        : newCompletableFuture(get(future), executor);
+  }
+
+  /**
    * Creates a new immediately failed {@code CompletableFuture}.
    *
    * @param cause
@@ -87,16 +134,6 @@ public final class CompletableFutures {
     CompletableFuture<T> f = new CompletableFuture<>();
     f.completeExceptionally(cause);
     return f;
-  }
-
-  private static <T> CompletableFuture<T> newCompletableFuture(Future<T> f) {
-    return f instanceof CompletableFuture ? (CompletableFuture<T>) f : newCompletableFuture(() -> {
-      try {
-        return f.get();
-      } catch (ExecutionException e) {
-        throw e.getCause();
-      }
-    });
   }
 
   @SafeVarargs
@@ -159,7 +196,7 @@ public final class CompletableFutures {
     }
 
     CompletableFuture<Object> f = CompletableFuture.anyOf(futuresArray);
-    return f.thenApply(i -> Optional.of(i).map(unsafeCast()));
+    return f.thenApply(CompletableFutures.<T> unsafeCast()).thenApply(Optional::of);
   }
 
   @SafeVarargs
