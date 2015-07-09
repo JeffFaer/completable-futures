@@ -28,7 +28,9 @@ public class BaseCompletableFuturesTest {
 
   public void complete(int start, int limit) {
     for (int i = start; i < limit; i++) {
-      futures.get(i).complete(i);
+      CompletableFuture<Integer> f = futures.get(i);
+      int complete = i;
+      CompletableFuture.runAsync(() -> f.complete(complete));
     }
   }
 }
