@@ -12,7 +12,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import name.falgout.jeffrey.stream.future.FutureStream;
@@ -154,8 +153,9 @@ public final class CompletableFutures {
   }
 
   private static <T> CompletableFuture<?>[] toArray(Iterable<? extends Future<T>> futures) {
-    return createStream(futures).map(CompletableFutures::newCompletableFuture).toArray(
-        CompletableFuture<?>[]::new);
+    return StreamSupport.stream(futures.spliterator(), false)
+        .map(CompletableFutures::newCompletableFuture)
+        .toArray(CompletableFuture<?>[]::new);
   }
 
   @SuppressWarnings("unchecked")
@@ -205,11 +205,7 @@ public final class CompletableFutures {
   }
 
   public static <T> FutureStream<T> stream(Iterable<? extends Future<T>> futures) {
-    return FutureStreamBridge.of(createStream(futures));
-  }
-
-  private static <T> Stream<T> createStream(Iterable<T> elements) {
-    return StreamSupport.stream(elements.spliterator(), false);
+    return FutureStreamBridge.of(futures.spliterator());
   }
 
   @SafeVarargs
@@ -218,6 +214,6 @@ public final class CompletableFutures {
   }
 
   public static <T> FutureStream<T> stream(Executor executor, Iterable<? extends Future<T>> futures) {
-    return FutureStreamBridge.of(createStream(futures), executor);
+    return FutureStreamBridge.of(futures.spliterator(), executor);
   }
 }
