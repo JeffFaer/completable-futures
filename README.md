@@ -8,7 +8,7 @@ This project aims to make asyncronous programming easier.
  ###How can I use this library in my project?
  - [Clone the repository](http://git-scm.com/book/en/Git-Basics-Getting-a-Git-Repository#Cloning-an-Existing-Repository) and use maven to generate a .jar file:
 
-Note: You will need to download [ThrowingStreams](https://github.com/JeffreyFalgout/ThrowingStreams) and create a snapshot.
+Note: You will need to download [ThrowingStream](https://github.com/JeffreyFalgout/ThrowingStream) and create a snapshot.
 ````
 git clone https://github.com/JeffreyFalgout/completable-futures
 cd completable-futures/
